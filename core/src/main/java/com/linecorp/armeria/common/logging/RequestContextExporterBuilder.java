@@ -15,6 +15,7 @@
  */
 package com.linecorp.armeria.common.logging;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.util.HashSet;
@@ -39,6 +40,8 @@ public final class RequestContextExporterBuilder {
     private static final String PREFIX_REQ_HEADERS = "req.headers.";
     private static final String PREFIX_RES_HEADERS = "res.headers.";
 
+    @Nullable
+    private String exportPrefix = null;
     private final Set<ExportEntry<BuiltInProperty>> builtIns = new HashSet<>();
     private final Set<ExportEntry<AttributeKey<?>>> attrs = new HashSet<>();
     private final Set<ExportEntry<AsciiString>> reqHeaders = new HashSet<>();
@@ -246,10 +249,26 @@ public final class RequestContextExporterBuilder {
         return stringifier;
     }
 
+    public void setExportPrefix(String exportPrefix) {
+        requireNonNull(exportPrefix, "exportPrefix");
+        checkArgument(!exportPrefix.isEmpty(), "exportPrefix must not be empty");
+
+        this.exportPrefix = exportPrefix;
+    }
+
     /**
      * Returns a newly-created {@link RequestContextExporter} instance.
      */
     public RequestContextExporter build() {
-        return new RequestContextExporter(builtIns, attrs, reqHeaders, resHeaders);
+        if (exportPrefix == null) {
+            return new RequestContextExporter(builtIns, attrs, reqHeaders, resHeaders);
+        } else {
+            return new RequestContextExporter(
+                    ExportEntry.withPrefix(builtIns, exportPrefix),
+                    ExportEntry.withPrefix(attrs, exportPrefix),
+                    ExportEntry.withPrefix(reqHeaders, exportPrefix),
+                    ExportEntry.withPrefix(resHeaders, exportPrefix)
+            );
+        }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.linecorp.armeria.common.logging;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -366,6 +368,22 @@ public final class RequestContextExporter {
         @Override
         public String toString() {
             return exportKey + ':' + key;
+        }
+
+        public ExportEntry<T> withPrefix(String exportPrefix) {
+            checkArgument(!exportPrefix.isEmpty(), "exportPrefix must not be empty");
+
+            if (stringifier == null) {
+                return new ExportEntry<>(key, exportPrefix + exportKey);
+            } else {
+                return new ExportEntry<>(key, exportPrefix + exportKey, stringifier);
+            }
+        }
+
+        public static <T> Set<ExportEntry<T>> withPrefix(Set<ExportEntry<T>> entries, String exportPrefix) {
+            checkArgument(!exportPrefix.isEmpty(), "exportPrefix must not be empty");
+
+            return entries.stream().map(entry -> entry.withPrefix(exportPrefix)).collect(Collectors.toSet());
         }
     }
 

@@ -131,6 +131,12 @@ public final class RequestContextExportingAppender
         builder.responseHeader(name);
     }
 
+    public void setExportPrefix(String exportPrefix) {
+        requireNonNull(exportPrefix, "exportPrefix");
+        checkArgument(!exportPrefix.isEmpty(), "exportPrefix must not be empty");
+        builder.setExportPrefix(exportPrefix);
+    }
+
     /**
      * Adds the property represented by the specified MDC key to the export list.
      * Note: this method is meant to be used for XML configuration.

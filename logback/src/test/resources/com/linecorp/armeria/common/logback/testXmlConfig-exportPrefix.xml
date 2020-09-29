@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2016 LINE Corporation
+  ~ Copyright 2020 LINE Corporation
   ~
   ~ LINE Corporation licenses this file to you under the Apache License,
   ~ version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,18 +18,14 @@
   <appender name="NOP" class="ch.qos.logback.core.helpers.NOPAppender" />
   <appender name="RCEA" class="com.linecorp.armeria.common.logback.RequestContextExportingAppender">
     <appender-ref ref="NOP"/>
-    <export>remote.host</export>
+    <exportPrefix>armeria.</exportPrefix>
+    <export>remote.*</export>
     <export>req.headers.user-agent</export>
-    <export>res.headers.set-cookie</export>
-    <export>attrs.foo:com.example.AttrKeys#FOO</export>
-    <export>attrs.bar:com.example.AttrKeys#BAR:com.linecorp.armeria.common.logback.CustomObjectValueStringifier</export>
-    <export>attrs.qux:com.example.AttrKeys#BAR:com.linecorp.armeria.common.logback.CustomObjectNameStringifier</export>
+    <export>attrs.qux:com.linecorp.armeria.common.logback.CustomObject#ATTR:com.linecorp.armeria.common.logback.CustomObjectNameStringifier</export>
     <exports>
-      remote.ip, remote.port,
-      req.headers.content-type,
       local.*,
-      attrs.baz:com.example.AttrKeys#BAZ,
-      baz2=attr:com.example.AttrKeys#BAZ
+      attrs.bar:com.linecorp.armeria.common.logback.CustomObject#ATTR:com.linecorp.armeria.common.logback.CustomObjectValueStringifier,
+      baz=attr:com.linecorp.armeria.common.logback.CustomObject#ATTR:com.linecorp.armeria.common.logback.CustomObjectValueStringifier
     </exports>
   </appender>
 

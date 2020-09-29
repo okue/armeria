@@ -76,9 +76,6 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 
 class RequestContextExportingAppenderTest {
 
-    private static final AttributeKey<CustomObject> MY_ATTR =
-            AttributeKey.valueOf(RequestContextExportingAppenderTest.class, "MY_ATTR");
-
     private static final RpcRequest RPC_REQ = RpcRequest.of(Object.class, "hello", "world");
     private static final RpcResponse RPC_RES = RpcResponse.of("Hello, world!");
     private static final ThriftCall THRIFT_CALL =
@@ -164,7 +161,7 @@ class RequestContextExportingAppenderTest {
         assertThatThrownBy(() -> a.addBuiltIn(BuiltInProperty.REQ_PATH))
                 .isExactlyInstanceOf(IllegalStateException.class);
 
-        assertThatThrownBy(() -> a.addAttribute("my-attr", MY_ATTR))
+        assertThatThrownBy(() -> a.addAttribute("my-attr", CustomObject.ATTR))
                 .isExactlyInstanceOf(IllegalStateException.class);
 
         assertThatThrownBy(() -> a.addRequestHeader(HttpHeaderNames.ACCEPT))
@@ -192,7 +189,10 @@ class RequestContextExportingAppenderTest {
             assertThat(rcea.exporter().builtIns()).containsExactlyInAnyOrder(
                     BuiltInProperty.REMOTE_HOST,
                     BuiltInProperty.REMOTE_IP,
-                    BuiltInProperty.REMOTE_PORT
+                    BuiltInProperty.REMOTE_PORT,
+                    BuiltInProperty.LOCAL_IP,
+                    BuiltInProperty.LOCAL_PORT,
+                    BuiltInProperty.LOCAL_HOST
             );
             assertThat(rcea.exporter().requestHeaders()).containsExactlyInAnyOrder(
                     HttpHeaderNames.USER_AGENT,
@@ -206,7 +206,50 @@ class RequestContextExportingAppenderTest {
             assertThat(rcea.exporter().attributes()).containsOnly(new SimpleEntry<>("attrs.foo", fooAttr),
                                                                   new SimpleEntry<>("attrs.bar", barAttr),
                                                                   new SimpleEntry<>("attrs.qux", barAttr),
-                                                                  new SimpleEntry<>("attrs.baz", bazAttr));
+                                                                  new SimpleEntry<>("attrs.baz", bazAttr),
+                                                                  new SimpleEntry<>("baz2", bazAttr));
+        } finally {
+            // Revert to the original configuration.
+            final JoranConfigurator configurator = new JoranConfigurator();
+            configurator.setContext(context);
+            context.reset();
+
+            configurator.doConfigure(getClass().getResource("/logback-test.xml"));
+        }
+    }
+
+    @Test
+    void testXmlConfigExportPrefix() throws Exception {
+        try {
+            final JoranConfigurator configurator = new JoranConfigurator();
+            configurator.setContext(context);
+            context.reset();
+
+            configurator.doConfigure(getClass().getResource("testXmlConfig-exportPrefix.xml"));
+
+            final RequestContextExportingAppender rcea =
+                    (RequestContextExportingAppender) logger.getAppender("RCEA");
+
+            rcea.start();
+            logger.trace("foo");
+
+            final ServiceRequestContext ctx = newServiceContext("/foo", "name=alice");
+            final RequestLogBuilder log = ctx.logBuilder();
+            log.endRequest();
+            log.endResponse();
+
+            final Map<String, String> mdc = rcea.exporter().export(ctx);
+            assertThat(mdc).containsEntry("armeria.local.host", "server.com")
+                           .containsEntry("armeria.local.ip", "5.6.7.8")
+                           .containsEntry("armeria.local.port", "8080")
+                           .containsEntry("armeria.remote.host", "client.com")
+                           .containsEntry("armeria.remote.ip", "1.2.3.4")
+                           .containsEntry("armeria.remote.port", "5678")
+                           .containsEntry("armeria.req.headers.user-agent", "some-client")
+                           .containsEntry("armeria.attrs.qux", "some-name")
+                           .containsEntry("armeria.attrs.bar", "some-value")
+                           .containsEntry("armeria.baz", "some-value")
+                           .hasSize(10);
         } finally {
             // Revert to the original configuration.
             final JoranConfigurator configurator = new JoranConfigurator();
@@ -326,8 +369,8 @@ class RequestContextExportingAppenderTest {
                 a.addBuiltIn(p);
             }
             // .. and an attribute.
-            a.addAttribute("attrs.my_attr_name", MY_ATTR, new CustomObjectNameStringifier());
-            a.addAttribute("attrs.my_attr_value", MY_ATTR, new CustomObjectValueStringifier());
+            a.addAttribute("attrs.my_attr_name", CustomObject.ATTR, new CustomObjectNameStringifier());
+            a.addAttribute("attrs.my_attr_value", CustomObject.ATTR, new CustomObjectValueStringifier());
             // .. and some HTTP headers.
             a.addRequestHeader(HttpHeaderNames.USER_AGENT);
             a.addResponseHeader(HttpHeaderNames.DATE);
@@ -418,7 +461,7 @@ class RequestContextExportingAppenderTest {
                                              ProxiedAddresses.of(new InetSocketAddress("9.10.11.12", 0)))
                                      .build();
 
-        ctx.setAttr(MY_ATTR, new CustomObject("some-name", "some-value"));
+        ctx.setAttr(CustomObject.ATTR, new CustomObject("some-name", "some-value"));
         return ctx;
     }
 
@@ -463,8 +506,8 @@ class RequestContextExportingAppenderTest {
                 a.addBuiltIn(p);
             }
             // .. and an attribute.
-            a.addAttribute("attrs.my_attr_name", MY_ATTR, new CustomObjectNameStringifier());
-            a.addAttribute("attrs.my_attr_value", MY_ATTR, new CustomObjectValueStringifier());
+            a.addAttribute("attrs.my_attr_name", CustomObject.ATTR, new CustomObjectNameStringifier());
+            a.addAttribute("attrs.my_attr_value", CustomObject.ATTR, new CustomObjectValueStringifier());
             // .. and some HTTP headers.
             a.addRequestHeader(HttpHeaderNames.USER_AGENT);
             a.addResponseHeader(HttpHeaderNames.DATE);
@@ -540,7 +583,7 @@ class RequestContextExportingAppenderTest {
                                     .sslSession(newSslSession())
                                     .build();
 
-        ctx.setAttr(MY_ATTR, new CustomObject("some-name", "some-value"));
+        ctx.setAttr(CustomObject.ATTR, new CustomObject("some-name", "some-value"));
         return ctx;
     }
 
