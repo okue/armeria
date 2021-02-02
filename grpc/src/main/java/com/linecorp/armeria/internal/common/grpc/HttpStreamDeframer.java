@@ -26,6 +26,7 @@ import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpObject;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.RequestHeaders;
+import com.linecorp.armeria.common.grpc.ArmeriaGrpcStatus;
 import com.linecorp.armeria.common.grpc.GrpcStatusFunction;
 import com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer;
 import com.linecorp.armeria.common.grpc.protocol.Decompressor;
@@ -109,7 +110,9 @@ public final class HttpStreamDeframer extends ArmeriaMessageDeframer {
             try {
                 decompressor(ForwardingDecompressor.forGrpc(decompressor));
             } catch (Throwable t) {
-                transportStatusListener.transportReportStatus(GrpcStatus.fromThrowable(statusFunction, t));
+                final ArmeriaGrpcStatus armeriaGrpcStatus = GrpcStatus.fromThrowable(statusFunction, t);
+                transportStatusListener.transportReportStatus(
+                        armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata());
             }
         }
     }
@@ -125,7 +128,9 @@ public final class HttpStreamDeframer extends ArmeriaMessageDeframer {
 
     @Override
     public void processOnError(Throwable cause) {
-        transportStatusListener.transportReportStatus(GrpcStatus.fromThrowable(statusFunction, cause));
+        final ArmeriaGrpcStatus armeriaGrpcStatus = GrpcStatus.fromThrowable(statusFunction, cause);
+        transportStatusListener.transportReportStatus(
+                armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata());
     }
 
     @Override

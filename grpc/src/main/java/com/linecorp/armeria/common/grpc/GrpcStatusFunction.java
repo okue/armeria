@@ -22,20 +22,18 @@ import javax.annotation.Nullable;
 
 import com.linecorp.armeria.common.annotation.UnstableApi;
 
-import io.grpc.Status;
-
 /**
- * A mapping function that converts a {@link Throwable} into a gRPC {@link Status}.
+ * A mapping function that converts a {@link Throwable} into an {@link ArmeriaGrpcStatus}.
  */
 @UnstableApi
 @FunctionalInterface
-public interface GrpcStatusFunction extends Function<Throwable, Status> {
+public interface GrpcStatusFunction extends Function<Throwable, ArmeriaGrpcStatus> {
 
     /**
-     * Maps the specified {@link Throwable} to a gRPC {@link Status}.
+     * Maps the specified {@link Throwable} to an {@link ArmeriaGrpcStatus}.
      * If {@code null} is returned, the built-in mapping rule is used by default.
      */
     @Nullable
     @Override
-    Status apply(Throwable throwable);
+    ArmeriaGrpcStatus apply(Throwable throwable);
 }

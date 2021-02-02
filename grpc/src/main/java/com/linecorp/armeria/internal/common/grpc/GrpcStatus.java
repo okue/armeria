@@ -52,6 +52,7 @@ import com.linecorp.armeria.common.ContentTooLargeException;
 import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.TimeoutException;
+import com.linecorp.armeria.common.grpc.ArmeriaGrpcStatus;
 import com.linecorp.armeria.common.grpc.GrpcStatusFunction;
 import com.linecorp.armeria.common.grpc.StackTraceElementProto;
 import com.linecorp.armeria.common.grpc.StatusCauseException;
@@ -81,7 +82,8 @@ public final class GrpcStatus {
      * well and the protocol package.
      */
     public static Status fromThrowable(Throwable t) {
-       return fromThrowable(null, t);
+        t = unwrap(requireNonNull(t, "t"));
+        return statusFromThrowable(t);
     }
 
     /**
@@ -90,16 +92,20 @@ public final class GrpcStatus {
      * the built-in exception mapping rule, which takes into account exceptions specific to Armeria as well
      * and the protocol package, is used by default.
      */
-    public static Status fromThrowable(@Nullable GrpcStatusFunction statusFunction, Throwable t) {
+    public static ArmeriaGrpcStatus fromThrowable(@Nullable GrpcStatusFunction statusFunction, Throwable t) {
         t = unwrap(requireNonNull(t, "t"));
 
         if (statusFunction != null) {
-            final Status status = statusFunction.apply(t);
+            final ArmeriaGrpcStatus status = statusFunction.apply(t);
             if (status != null) {
                 return status;
             }
         }
 
+        return ArmeriaGrpcStatus.of(statusFromThrowable(t));
+    }
+
+    private static Status statusFromThrowable(Throwable t) {
         final Status s = Status.fromThrowable(t);
         if (s.getCode() != Code.UNKNOWN) {
             return s;
@@ -138,20 +144,22 @@ public final class GrpcStatus {
      * using the specified {@link GrpcStatusFunction}.
      * Returns the given {@link Status} as is if the {@link GrpcStatusFunction} returns {@code null}.
      */
-    public static Status fromStatusFunction(@Nullable GrpcStatusFunction statusFunction, Status status) {
+    public static ArmeriaGrpcStatus fromStatusFunction(@Nullable GrpcStatusFunction statusFunction,
+                                                       Status status, Metadata metadata) {
         requireNonNull(status, "status");
 
         if (statusFunction != null) {
             final Throwable cause = status.getCause();
             if (cause != null) {
                 final Throwable unwrapped = unwrap(cause);
-                final Status newStatus = statusFunction.apply(unwrapped);
+                final ArmeriaGrpcStatus newStatus = statusFunction.apply(unwrapped);
                 if (newStatus != null) {
+                    newStatus.getMetadata().merge(metadata);
                     return newStatus;
                 }
             }
         }
-        return status;
+        return ArmeriaGrpcStatus.of(status, metadata);
     }
 
     private static Throwable unwrap(Throwable t) {

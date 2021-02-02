@@ -46,6 +46,7 @@ import com.linecorp.armeria.common.HttpResponseWriter;
 import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.SerializationFormat;
+import com.linecorp.armeria.common.grpc.ArmeriaGrpcStatus;
 import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.common.grpc.GrpcSerializationFormats;
 import com.linecorp.armeria.common.grpc.GrpcStatusFunction;
@@ -295,10 +296,10 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
                 }
             });
         } catch (RuntimeException e) {
-            close(e, new Metadata());
+            close(e);
             throw e;
         } catch (Throwable t) {
-            close(t, new Metadata());
+            close(t);
             throw new RuntimeException(t);
         }
     }
@@ -309,7 +310,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
                 listener.onReady();
             }
         } catch (Throwable t) {
-            close(t, new Metadata());
+            close(t);
         }
     }
 
@@ -321,20 +322,26 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
     @Override
     public void close(Status status, Metadata metadata) {
         if (ctx.eventLoop().inEventLoop()) {
-            doClose(GrpcStatus.fromStatusFunction(statusFunction, status), metadata);
+            final ArmeriaGrpcStatus armeriaGrpcStatus =
+                    GrpcStatus.fromStatusFunction(statusFunction, status, metadata);
+            doClose(armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata());
         } else {
             ctx.eventLoop().execute(() -> {
-                doClose(GrpcStatus.fromStatusFunction(statusFunction, status), metadata);
+                final ArmeriaGrpcStatus armeriaGrpcStatus =
+                        GrpcStatus.fromStatusFunction(statusFunction, status, metadata);
+                doClose(armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata());
             });
         }
     }
 
-    private void close(Throwable exception, Metadata metadata) {
+    private void close(Throwable exception) {
         if (ctx.eventLoop().inEventLoop()) {
-            doClose(GrpcStatus.fromThrowable(statusFunction, exception), metadata);
+            final ArmeriaGrpcStatus status = GrpcStatus.fromThrowable(statusFunction, exception);
+            doClose(status.get(), status.getMetadata());
         } else {
             ctx.eventLoop().execute(() -> {
-                doClose(GrpcStatus.fromThrowable(statusFunction, exception), metadata);
+                final ArmeriaGrpcStatus status = GrpcStatus.fromThrowable(statusFunction, exception);
+                doClose(status.get(), status.getMetadata());
             });
         }
     }
@@ -455,7 +462,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
             }
         } catch (Throwable e) {
             upstream.cancel();
-            close(e, new Metadata());
+            close(e);
         }
     }
 
@@ -465,7 +472,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
             listener.onMessage(request);
         } catch (Throwable t) {
             upstream.cancel();
-            close(t, new Metadata());
+            close(t);
         }
     }
 
@@ -488,7 +495,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
     @Override
     public void onError(Throwable t) {
         if (!closeCalled && !(t instanceof AbortedStreamException)) {
-            close(t, new Metadata());
+            close(t);
         }
     }
 
@@ -505,7 +512,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
                 listener.onReady();
             }
         } catch (Throwable t) {
-            close(t, new Metadata());
+            close(t);
         }
     }
 
@@ -584,7 +591,7 @@ final class ArmeriaServerCall<I, O> extends ServerCall<I, O>
                 // A custom error when dealing with client cancel or transport issues should be
                 // returned. We have already closed the listener, so it will not receive any more
                 // callbacks as designed.
-                close(t, new Metadata());
+                close(t);
             }
         }
     }

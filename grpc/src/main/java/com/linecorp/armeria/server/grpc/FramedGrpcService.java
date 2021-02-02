@@ -45,6 +45,7 @@ import com.linecorp.armeria.common.MediaType;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.common.SerializationFormat;
+import com.linecorp.armeria.common.grpc.ArmeriaGrpcStatus;
 import com.linecorp.armeria.common.grpc.GrpcJsonMarshaller;
 import com.linecorp.armeria.common.grpc.GrpcSerializationFormats;
 import com.linecorp.armeria.common.grpc.GrpcStatusFunction;
@@ -193,10 +194,11 @@ final class FramedGrpcService extends AbstractHttpService implements GrpcService
                         ctx.setRequestTimeout(TimeoutMode.SET_FROM_NOW, Duration.ofNanos(timeout));
                     }
                 } catch (IllegalArgumentException e) {
+                    final ArmeriaGrpcStatus armeriaGrpcStatus = GrpcStatus.fromThrowable(statusFunction, e);
                     return HttpResponse.of(
                             (ResponseHeaders) ArmeriaServerCall.statusToTrailers(
                                     ctx, defaultHeaders.get(serializationFormat).toBuilder(),
-                                    GrpcStatus.fromThrowable(statusFunction, e), new Metadata()));
+                                    armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata()));
                 }
             }
         }
@@ -244,7 +246,8 @@ final class FramedGrpcService extends AbstractHttpService implements GrpcService
                                 .startCall(call, MetadataUtil.copyFromHeaders(req.headers()));
         } catch (Throwable t) {
             call.setListener(new EmptyListener<>());
-            call.close(GrpcStatus.fromThrowable(statusFunction, t), new Metadata());
+            final ArmeriaGrpcStatus armeriaGrpcStatus = GrpcStatus.fromThrowable(statusFunction, t);
+            call.close(armeriaGrpcStatus.get(), armeriaGrpcStatus.getMetadata());
             logger.warn(
                     "Exception thrown from streaming request stub method before processing any request data" +
                     " - this is likely a bug in the stub implementation.");
