@@ -469,6 +469,7 @@ org.jetbrains.kotlinx:
   kotlinx-coroutines-core: { version: &KOTLIN_COROUTINE_VERSION '1.4.2' }
   kotlinx-coroutines-jdk8: { version: *KOTLIN_COROUTINE_VERSION }
   kotlinx-coroutines-rx2: { version: *KOTLIN_COROUTINE_VERSION }
+  lincheck: { version: '2.12' }
 
 org.jlleitschuh.gradle:
   ktlint-gradle: { version: '9.4.1' }

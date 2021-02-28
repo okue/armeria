@@ -24,8 +24,15 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     testImplementation("io.grpc:grpc-kotlin-stub")
     testImplementation("javax.annotation:javax.annotation-api")
+    testImplementation("org.jetbrains.kotlinx:lincheck")
 }
 
+tasks.withType<Test> {
+    jvmArgs(
+        "--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-exports", "java.base/jdk.internal.util=ALL-UNNAMED"
+    )
+}
 tasks.withType<KotlinCompile> {
     kotlinOptions {
         freeCompilerArgs = listOf("-Xjsr305=strict", "-java-parameters")
